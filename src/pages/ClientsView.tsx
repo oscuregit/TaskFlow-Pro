@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
-import { Plus, Mail, Phone, Building2, Edit2, Contact, Trash2 } from 'lucide-react';
+import { Plus, Mail, Phone, Building2, Edit2, Contact, Trash2, X } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
+import { Link } from 'react-router-dom';
+import { Client } from '../types';
 
 export default function ClientsView() {
-  const { clients, addClient, updateClient, deleteClient, settings } = useData();
+  const { clients, tasks, addClient, updateClient, deleteClient, updateTask, settings } = useData();
   const { t } = useTranslation(settings?.language || 'tr');
   const [isAdding, setIsAdding] = useState(false);
   const [newClient, setNewClient] = useState({ name: '', company: '', email: '', phone: '' });
@@ -13,6 +15,7 @@ export default function ClientsView() {
   const [editForm, setEditForm] = useState({ name: '', company: '', email: '', phone: '' });
   const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   const [toast, setToast] = useState<{message: string, type: 'error'|'success'} | null>(null);
+  const [viewingTasksForClient, setViewingTasksForClient] = useState<Client | null>(null);
 
   const showToast = (message: string, type: 'error'|'success' = 'error') => {
     setToast({ message, type });
@@ -158,8 +161,15 @@ export default function ClientsView() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {clients.map(client => (
-          <div key={client.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 relative group">
+        {clients.map(client => {
+          const clientTasks = tasks.filter(t => t.clientId === client.id);
+          const todoCount = clientTasks.filter(t => t.status === 'todo').length;
+          const inProgressCount = clientTasks.filter(t => t.status === 'in_progress').length;
+          const waitingCount = clientTasks.filter(t => t.status === 'waiting').length;
+          const doneCount = clientTasks.filter(t => t.status === 'done').length;
+
+          return (
+          <div key={client.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 relative group flex flex-col">
             {editingClient === client.id ? (
               <form onSubmit={(e) => handleEditSubmit(e, client.id)} className="space-y-3">
                 <input 
@@ -260,16 +270,97 @@ export default function ClientsView() {
                     </div>
                   )}
                 </div>
+                
+                {/* Task Summary Section */}
+                <div className="mt-auto pt-4">
+                  {clientTasks.length > 0 ? (
+                    <div 
+                      onClick={() => setViewingTasksForClient(client)}
+                      className="border-t border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 -mx-5 -mb-5 p-5 rounded-b-xl transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{t('client_tasks')} ({clientTasks.length})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {todoCount > 0 && <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded">{t('todo')}: {todoCount}</span>}
+                        {inProgressCount > 0 && <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">{t('in_progress')}: {inProgressCount}</span>}
+                        {waitingCount > 0 && <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded">{t('waiting')}: {waitingCount}</span>}
+                        {doneCount > 0 && <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded">{t('done')}: {doneCount}</span>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-t border-gray-100 dark:border-gray-700 -mx-5 -mb-5 p-5 rounded-b-xl">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{t('no_tasks_for_client')}</span>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
-        ))}
+        )})}
         {clients.length === 0 && !isAdding && (
           <div className="col-span-full text-center py-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
             {t('no_clients')}
           </div>
         )}
       </div>
+
+      {/* Client Tasks Modal */}
+      {viewingTasksForClient && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {viewingTasksForClient.name} - {t('client_tasks')}
+              </h2>
+              <button 
+                onClick={() => setViewingTasksForClient(null)} 
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                title={t('close')}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-3">
+              {tasks.filter(t => t.clientId === viewingTasksForClient.id).length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">{t('no_tasks_for_client')}</p>
+              ) : (
+                tasks.filter(t => t.clientId === viewingTasksForClient.id).map(task => (
+                  <div key={task.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                    <div>
+                      <Link to={`/tasks/${task.id}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                        {task.title}
+                      </Link>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
+                        {task.dueDate && (
+                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                        )}
+                        {task.expectedRevenue && (
+                          <span className="font-medium text-gray-700 dark:text-gray-300">
+                            • {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{task.expectedRevenue}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <select
+                        value={task.status}
+                        onChange={(e) => updateTask(task.id, { status: e.target.value as any })}
+                        className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 outline-none"
+                      >
+                        <option value="todo">{t('todo')}</option>
+                        <option value="in_progress">{t('in_progress')}</option>
+                        <option value="waiting">{t('waiting')}</option>
+                        <option value="done">{t('done')}</option>
+                      </select>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

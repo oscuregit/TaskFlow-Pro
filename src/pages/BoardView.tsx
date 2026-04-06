@@ -89,7 +89,7 @@ export default function BoardView() {
                           </span>
                           {task.expectedRevenue && (
                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                              {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : '₺'}{task.expectedRevenue}
+                              {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{task.expectedRevenue}
                             </span>
                           )}
                         </div>

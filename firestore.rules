@@ -134,6 +134,18 @@ service cloud.firestore {
              data.createdAt is string;
     }
 
+    function isValidGeneralExpense() {
+      let data = request.resource.data;
+      return hasRequiredFields(['description', 'amount', 'date', 'userId', 'createdAt']) &&
+             validStringLength('description', 1, 500) &&
+             data.amount is number &&
+             isValidOptionalString('currency', 0, 10) &&
+             data.date is string &&
+             isValidOptionalString('category', 0, 100) &&
+             data.userId == request.auth.uid &&
+             data.createdAt is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -156,6 +168,13 @@ service cloud.firestore {
       allow read: if isDocOwner();
       allow create: if isAuthenticated() && isValidTask() && uidUnchanged();
       allow update: if isDocOwner() && isValidTask() && uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /generalExpenses/{expenseId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidGeneralExpense() && uidUnchanged();
+      allow update: if isDocOwner() && isValidGeneralExpense() && uidNotModified();
       allow delete: if isDocOwner();
     }
     

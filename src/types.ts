@@ -6,11 +6,7 @@ export interface UserSettings {
     email: boolean;
     push: boolean;
   };
-  exchangeRates?: {
-    USD: number;
-    EUR: number;
-    GBP: number;
-  };
+  preferredCurrency?: string;
 }
 
 export interface Client {
@@ -28,6 +24,17 @@ export interface Expense {
   description: string;
   amount: number;
   date: string;
+}
+
+export interface GeneralExpense {
+  id: string;
+  description: string;
+  amount: number;
+  currency?: string;
+  date: string;
+  category?: string;
+  userId: string;
+  createdAt: string;
 }
 
 export interface Subtask {

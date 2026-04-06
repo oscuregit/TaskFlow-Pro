@@ -217,7 +217,7 @@ export default function CalendarView() {
                     </span>
                     {(task.expectedRevenue ?? 0) > 0 && (
                       <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-medium">
-                        {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : '₺'}{task.expectedRevenue}
+                        {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{task.expectedRevenue}
                       </span>
                     )}
                   </div>

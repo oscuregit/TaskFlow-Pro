@@ -158,44 +158,23 @@ export default function SettingsView() {
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-white">
               <Globe className="w-5 h-5 text-emerald-500" />
-              {t('exchange_rates')}
+              {t('preferred_currency')}
             </h2>
             <div className="space-y-4">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {t('exchange_rates_desc')}
+                {t('preferred_currency_desc')}
               </p>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">USD / TRY</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={settings.exchangeRates?.USD || ''}
-                    onChange={(e) => updateSettings({ exchangeRates: { ...settings.exchangeRates, USD: parseFloat(e.target.value) || 0, EUR: settings.exchangeRates?.EUR || 0, GBP: settings.exchangeRates?.GBP || 0 } })}
-                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">EUR / TRY</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={settings.exchangeRates?.EUR || ''}
-                    onChange={(e) => updateSettings({ exchangeRates: { ...settings.exchangeRates, EUR: parseFloat(e.target.value) || 0, USD: settings.exchangeRates?.USD || 0, GBP: settings.exchangeRates?.GBP || 0 } })}
-                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">GBP / TRY</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={settings.exchangeRates?.GBP || ''}
-                    onChange={(e) => updateSettings({ exchangeRates: { ...settings.exchangeRates, GBP: parseFloat(e.target.value) || 0, USD: settings.exchangeRates?.USD || 0, EUR: settings.exchangeRates?.EUR || 0 } })}
-                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
-                  />
-                </div>
-              </div>
+              <select 
+                value={settings.preferredCurrency || 'TRY'}
+                onChange={(e) => updateSettings({ preferredCurrency: e.target.value })}
+                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+              >
+                <option value="TRY">TRY (₺)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="PLN">PLN (zł)</option>
+              </select>
             </div>
           </div>
 

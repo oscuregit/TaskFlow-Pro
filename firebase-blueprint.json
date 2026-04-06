@@ -63,6 +63,21 @@
         "createdAt": { "type": "string" }
       },
       "required": ["title", "status", "difficulty", "userId", "createdAt"]
+    },
+    "GeneralExpense": {
+      "title": "GeneralExpense",
+      "description": "General monthly expenses not tied to a specific client/task",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "date": { "type": "string" },
+        "category": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["description", "amount", "date", "userId", "createdAt"]
     }
   },
   "firestore": {
@@ -77,6 +92,10 @@
     "/tasks/{taskId}": {
       "schema": { "$ref": "#/entities/Task" },
       "description": "Tasks created by users"
+    },
+    "/generalExpenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/GeneralExpense" },
+      "description": "General expenses created by users"
     }
   }
 }

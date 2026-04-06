@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where, doc, setDoc, updateDoc, deleteDoc, getDocFromServer } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { useAuth } from './AuthContext';
-import { Task, Client, OperationType, FirestoreErrorInfo, UserSettings } from '../types';
+import { Task, Client, OperationType, FirestoreErrorInfo, UserSettings, GeneralExpense } from '../types';
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
@@ -30,14 +30,20 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 interface DataContextType {
   tasks: Task[];
   clients: Client[];
+  generalExpenses: GeneralExpense[];
   settings: UserSettings | null;
   loading: boolean;
+  exchangeRates: Record<string, number>;
+  convertCurrency: (amount: number, fromCurrency?: string, toCurrency?: string) => number;
   addTask: (task: Omit<Task, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
   updateTask: (id: string, task: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
   updateClient: (id: string, client: Partial<Client>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
+  addGeneralExpense: (expense: Omit<GeneralExpense, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  updateGeneralExpense: (id: string, expense: Partial<GeneralExpense>) => Promise<void>;
+  deleteGeneralExpense: (id: string) => Promise<void>;
   updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
 }
 
@@ -51,19 +57,46 @@ const DEFAULT_SETTINGS: UserSettings = {
     email: true,
     push: true,
   },
-  exchangeRates: {
-    USD: 32.5,
-    EUR: 35.2,
-    GBP: 41.0,
-  }
+  preferredCurrency: 'TRY'
 };
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    async function fetchRates() {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        const data = await res.json();
+        if (data && data.rates) {
+          setExchangeRates(data.rates);
+        }
+      } catch (error) {
+        console.error("Failed to fetch exchange rates", error);
+      }
+    }
+    fetchRates();
+  }, []);
+
+  const convertCurrency = (amount: number, fromCurrency: string = 'TRY', toCurrency: string = 'TRY') => {
+    if (!amount) return 0;
+    if (fromCurrency === toCurrency) return amount;
+    
+    const rateFrom = exchangeRates[fromCurrency];
+    const rateTo = exchangeRates[toCurrency];
+    
+    if (!rateFrom || !rateTo) return amount; // Fallback if rates not loaded
+    
+    // Convert to USD first (base), then to target
+    const amountInUSD = amount / rateFrom;
+    return amountInUSD * rateTo;
+  };
 
   useEffect(() => {
     async function testConnection() {
@@ -82,6 +115,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!user) {
       setTasks([]);
       setClients([]);
+      setGeneralExpenses([]);
       setSettings(null);
       setLoading(false);
       return;
@@ -120,15 +154,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         clientsData.push({ id: doc.id, ...doc.data() } as Client);
       });
       setClients(clientsData);
-      setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'clients');
+    });
+
+    const qGeneralExpenses = query(collection(db, 'generalExpenses'), where('userId', '==', user.uid));
+    const unsubscribeGeneralExpenses = onSnapshot(qGeneralExpenses, (snapshot) => {
+      const expensesData: GeneralExpense[] = [];
+      snapshot.forEach((doc) => {
+        expensesData.push({ id: doc.id, ...doc.data() } as GeneralExpense);
+      });
+      setGeneralExpenses(expensesData);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'generalExpenses');
     });
 
     return () => {
       unsubscribeSettings();
       unsubscribeTasks();
       unsubscribeClients();
+      unsubscribeGeneralExpenses();
     };
   }, [user]);
 
@@ -200,6 +246,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addGeneralExpense = async (expenseData: Omit<GeneralExpense, 'id' | 'userId' | 'createdAt'>) => {
+    if (!user) return;
+    const newDocRef = doc(collection(db, 'generalExpenses'));
+    const expense: GeneralExpense = {
+      ...expenseData,
+      id: newDocRef.id,
+      userId: user.uid,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      await setDoc(newDocRef, expense);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `generalExpenses/${newDocRef.id}`);
+    }
+  };
+
+  const updateGeneralExpense = async (id: string, expenseData: Partial<GeneralExpense>) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'generalExpenses', id), expenseData);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `generalExpenses/${id}`);
+    }
+  };
+
+  const deleteGeneralExpense = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'generalExpenses', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `generalExpenses/${id}`);
+    }
+  };
+
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
     if (!user) return;
     try {
@@ -213,14 +293,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     <DataContext.Provider value={{ 
       tasks, 
       clients, 
+      generalExpenses,
       settings,
       loading, 
+      exchangeRates,
+      convertCurrency,
       addTask, 
       updateTask, 
       deleteTask, 
       addClient, 
       updateClient, 
       deleteClient,
+      addGeneralExpense,
+      updateGeneralExpense,
+      deleteGeneralExpense,
       updateSettings
     }}>
       {children}
