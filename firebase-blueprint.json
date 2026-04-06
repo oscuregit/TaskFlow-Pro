@@ -1,103 +1,82 @@
 {
   "entities": {
-    "Client": {
-      "title": "Client",
-      "description": "A client or company that tasks are associated with.",
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User preferences and settings",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "description": "Client's full name" },
-        "company": { "type": "string", "description": "Company name" },
-        "email": { "type": "string", "description": "Contact email" },
-        "phone": { "type": "string", "description": "Contact phone number" },
-        "userId": { "type": "string", "description": "ID of the user who owns this client" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "theme": { "type": "string", "enum": ["light", "dark"] },
+        "language": { "type": "string", "enum": ["tr", "en"] },
+        "timezone": { "type": "string" },
+        "notifications": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "boolean" },
+            "push": { "type": "boolean" }
+          }
+        },
+        "exchangeRates": {
+          "type": "object",
+          "properties": {
+            "USD": { "type": "number" },
+            "EUR": { "type": "number" },
+            "GBP": { "type": "number" }
+          }
+        }
+      },
+      "required": ["theme", "language", "timezone", "notifications"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Client information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "company": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string" }
       },
       "required": ["name", "userId", "createdAt"]
     },
     "Task": {
       "title": "Task",
-      "description": "A task or project.",
+      "description": "Task information",
       "type": "object",
       "properties": {
         "title": { "type": "string" },
         "description": { "type": "string" },
         "clientId": { "type": "string" },
         "status": { "type": "string", "enum": ["todo", "in_progress", "waiting", "done"] },
-        "dueDate": { "type": "string", "format": "date-time" },
-        "difficulty": { "type": "number", "description": "1 to 10" },
+        "dueDate": { "type": "string" },
+        "timezone": { "type": "string" },
+        "difficulty": { "type": "number" },
         "estimatedHours": { "type": "number" },
         "actualHours": { "type": "number" },
         "expectedRevenue": { "type": "number" },
         "currency": { "type": "string" },
-        "expenses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "description": { "type": "string" },
-              "amount": { "type": "number" },
-              "date": { "type": "string", "format": "date-time" }
-            },
-            "required": ["id", "description", "amount", "date"]
-          }
-        },
-        "subtasks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "title": { "type": "string" },
-              "isCompleted": { "type": "boolean" }
-            },
-            "required": ["id", "title", "isCompleted"]
-          }
-        },
-        "timeline": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "type": { "type": "string", "enum": ["note", "call", "update"] },
-              "content": { "type": "string" },
-              "date": { "type": "string", "format": "date-time" }
-            },
-            "required": ["id", "type", "content", "date"]
-          }
-        },
-        "userId": { "type": "string", "description": "ID of the user who owns this task" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "expenses": { "type": "array" },
+        "subtasks": { "type": "array" },
+        "timeline": { "type": "array" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string" }
       },
       "required": ["title", "status", "difficulty", "userId", "createdAt"]
-    },
-    "Settings": {
-      "title": "Settings",
-      "description": "User settings",
-      "type": "object",
-      "properties": {
-        "theme": { "type": "string" },
-        "language": { "type": "string" },
-        "timezone": { "type": "string" },
-        "notifications": { "type": "object" },
-        "exchangeRates": { "type": "object" }
-      },
-      "required": ["theme", "language", "timezone", "notifications"]
     }
   },
   "firestore": {
+    "/settings/{userId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "User settings document where document ID is the user's UID"
+    },
     "/clients/{clientId}": {
       "schema": { "$ref": "#/entities/Client" },
-      "description": "Stores client profiles."
+      "description": "Clients created by users"
     },
     "/tasks/{taskId}": {
       "schema": { "$ref": "#/entities/Task" },
-      "description": "Stores tasks and projects."
-    },
-    "/settings/{userId}": {
-      "schema": { "$ref": "#/entities/Settings" },
-      "description": "Stores user settings."
+      "description": "Tasks created by users"
     }
   }
 }
