@@ -1,0 +1,178 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: clients
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - company: string (optional)
+    //   - email: string (optional)
+    //   - phone: string (optional)
+    //   - userId: string (required, immutable)
+    //   - createdAt: string (required, immutable)
+    //
+    // Collection: tasks
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - clientId: string (optional)
+    //   - status: string (required, enum: todo, in_progress, waiting, done)
+    //   - dueDate: string (optional)
+    //   - timezone: string (optional)
+    //   - difficulty: number (required, 1-10)
+    //   - estimatedHours: number (optional)
+    //   - actualHours: number (optional)
+    //   - expectedRevenue: number (optional)
+    //   - expenses: list (optional)
+    //   - subtasks: list (optional)
+    //   - timeline: list (optional)
+    //   - userId: string (required, immutable)
+    //   - createdAt: string (required, immutable)
+    //
+    // Collection: settings
+    // Document ID: userId
+    // Fields:
+    //   - theme: string (light | dark)
+    //   - language: string (tr | en)
+    //   - timezone: string
+    //   - notifications: map
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == resource.data.userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidOptionalDateString(field) {
+      return !(field in request.resource.data) || isValidDateString(request.resource.data[field]);
+    }
+
+    function isValidOptionalNumber(field) {
+      return !(field in request.resource.data) || request.resource.data[field] is number;
+    }
+
+    function isValidOptionalList(field, maxSize) {
+      return !(field in request.resource.data) || (request.resource.data[field] is list && request.resource.data[field].size() <= maxSize);
+    }
+
+    function isValidSettings() {
+      return hasRequiredFields(['theme', 'language', 'timezone', 'notifications']) &&
+             request.resource.data.theme in ['light', 'dark'] &&
+             request.resource.data.language in ['tr', 'en'] &&
+             request.resource.data.timezone is string &&
+             request.resource.data.notifications is map &&
+             (!('exchangeRates' in request.resource.data) || request.resource.data.exchangeRates is map);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidClient() {
+      return hasRequiredFields(['name', 'userId', 'createdAt']) &&
+             isValidString('name', 1, 100) &&
+             isValidOptionalString('company', 0, 100) &&
+             isValidOptionalString('email', 0, 100) &&
+             isValidOptionalString('phone', 0, 50) &&
+             request.resource.data.userId == request.auth.uid &&
+             isValidDateString(request.resource.data.createdAt);
+    }
+
+    function isValidTask() {
+      return hasRequiredFields(['title', 'status', 'difficulty', 'userId', 'createdAt']) &&
+             isValidString('title', 1, 200) &&
+             isValidOptionalString('description', 0, 5000) &&
+             isValidOptionalString('clientId', 0, 100) &&
+             request.resource.data.status in ['todo', 'in_progress', 'waiting', 'done'] &&
+             isValidOptionalDateString('dueDate') &&
+             isValidOptionalString('timezone', 1, 100) &&
+             request.resource.data.difficulty is number &&
+             request.resource.data.difficulty >= 1 &&
+             request.resource.data.difficulty <= 10 &&
+             isValidOptionalNumber('estimatedHours') &&
+             isValidOptionalNumber('actualHours') &&
+             isValidOptionalNumber('expectedRevenue') &&
+             isValidOptionalString('currency', 1, 10) &&
+             isValidOptionalList('expenses', 100) &&
+             isValidOptionalList('subtasks', 100) &&
+             isValidOptionalList('timeline', 500) &&
+             request.resource.data.userId == request.auth.uid &&
+             isValidDateString(request.resource.data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /settings/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSettings();
+      allow update: if isOwner(userId) && isValidSettings();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidClient() && uidUnchanged();
+      allow update: if isDocOwner() && isValidClient() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isDocOwner();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidTask() && uidUnchanged();
+      allow update: if isDocOwner() && isValidTask() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isDocOwner();
+    }
+  }
+}
