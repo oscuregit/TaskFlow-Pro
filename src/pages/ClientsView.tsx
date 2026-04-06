@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
-import { Plus, Mail, Phone, Building2, Edit2, Contact } from 'lucide-react';
+import { Plus, Mail, Phone, Building2, Edit2, Contact, Trash2 } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
 
 export default function ClientsView() {
-  const { clients, addClient, updateClient, settings } = useData();
+  const { clients, addClient, updateClient, deleteClient, settings } = useData();
   const { t } = useTranslation(settings?.language || 'tr');
   const [isAdding, setIsAdding] = useState(false);
   const [newClient, setNewClient] = useState({ name: '', company: '', email: '', phone: '' });
   
   const [editingClient, setEditingClient] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', company: '', email: '', phone: '' });
+  const [clientToDelete, setClientToDelete] = useState<string | null>(null);
+  const [toast, setToast] = useState<{message: string, type: 'error'|'success'} | null>(null);
+
+  const showToast = (message: string, type: 'error'|'success' = 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const handleImportContacts = async () => {
     try {
-      if ('contacts' in navigator && 'ContactsManager' in window) {
+      if ('contacts' in navigator) {
         const props = ['name', 'email', 'tel'];
         const opts = { multiple: false };
         const contacts = await (navigator as any).contacts.select(props, opts);
@@ -28,11 +35,11 @@ export default function ClientsView() {
           });
         }
       } else {
-        alert(t('import_contacts_error'));
+        showToast(t('import_contacts_error'), 'error');
       }
     } catch (ex) {
       console.error(ex);
-      alert(t('import_contacts_error'));
+      showToast(t('import_contacts_error'), 'error');
     }
   };
 
@@ -49,10 +56,26 @@ export default function ClientsView() {
     if (!editForm.name) return;
     await updateClient(id, editForm);
     setEditingClient(null);
+    setClientToDelete(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (clientToDelete === id) {
+      await deleteClient(id);
+      setClientToDelete(null);
+      setEditingClient(null);
+    } else {
+      setClientToDelete(id);
+    }
   };
 
   return (
     <div className="space-y-6 pb-20">
+      {toast && (
+        <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg text-sm font-medium z-50 ${toast.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/80 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-900/80 dark:text-green-200'}`}>
+          {toast.message}
+        </div>
+      )}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('clients')}</h1>
         <button 
@@ -68,15 +91,14 @@ export default function ClientsView() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold dark:text-white">{t('add_new_client')}</h2>
-            {'contacts' in navigator && 'ContactsManager' in window && (
-              <button
-                onClick={handleImportContacts}
-                className="text-sm flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                <Contact className="w-4 h-4" />
-                {t('import_contacts')}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleImportContacts}
+              className="text-sm flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Contact className="w-4 h-4" />
+              {t('import_contacts')}
+            </button>
           </div>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -169,20 +191,33 @@ export default function ClientsView() {
                   value={editForm.phone}
                   onChange={e => setEditForm({...editForm, phone: e.target.value})}
                 />
-                <div className="flex justify-end gap-2 pt-2">
-                  <button 
-                    type="button" 
-                    onClick={() => setEditingClient(null)}
-                    className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium"
+                <div className="flex justify-between items-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(client.id)}
+                    className={`px-3 py-1.5 text-xs rounded-lg font-medium flex items-center gap-1 transition-colors ${clientToDelete === client.id ? 'bg-red-600 text-white hover:bg-red-700' : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
                   >
-                    {t('cancel')}
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {clientToDelete === client.id ? t('are_you_sure') : t('delete')}
                   </button>
-                  <button 
-                    type="submit"
-                    className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
-                  >
-                    {t('save')}
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setEditingClient(null);
+                        setClientToDelete(null);
+                      }}
+                      className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium"
+                    >
+                      {t('cancel')}
+                    </button>
+                    <button 
+                      type="submit"
+                      className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                    >
+                      {t('save')}
+                    </button>
+                  </div>
                 </div>
               </form>
             ) : (
@@ -199,7 +234,7 @@ export default function ClientsView() {
                         phone: client.phone || ''
                       });
                     }}
-                    className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors opacity-100 md:opacity-0 group-hover:opacity-100 focus:opacity-100"
                     title={t('edit_client')}
                   >
                     <Edit2 className="w-4 h-4" />
