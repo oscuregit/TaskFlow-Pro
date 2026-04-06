@@ -173,6 +173,17 @@ export default function Layout() {
         <div className="p-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">TaskFlow Pro</h1>
         </div>
+        
+        <div className="px-4 mb-6">
+          <button
+            onClick={() => navigate('/tasks/new')}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 shadow-sm transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            {t('new_task')}
+          </button>
+        </div>
+
         <nav className="flex-1 px-4 space-y-2">
           {navItems.map((item) => (
             <NavLink
