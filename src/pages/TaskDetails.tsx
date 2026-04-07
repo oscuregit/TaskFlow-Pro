@@ -73,18 +73,68 @@ export default function TaskDetails() {
   };
 
   const addSubtask = () => {
+    const newId = Date.now().toString();
     const newSubtask: Subtask = {
-      id: Date.now().toString(),
-      title: 'Yeni Alt Görev',
-      isCompleted: false
+      id: newId,
+      title: 'Yeni alt görev',
+      isCompleted: false,
+      pricingType: 'included',
+      priority: 5
     };
     setTask({ ...task, subtasks: [...(task.subtasks || []), newSubtask] });
+    
+    setTimeout(() => {
+      const input = document.getElementById(`subtask-title-${newId}`) as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 50);
   };
 
   const updateSubtask = (subId: string, field: keyof Subtask, value: any) => {
     setTask({
       ...task,
       subtasks: task.subtasks?.map(s => s.id === subId ? { ...s, [field]: value } : s)
+    });
+  };
+
+  const addSubtaskExpense = (subId: string) => {
+    const newExpense: Expense = {
+      id: Date.now().toString(),
+      description: 'Yeni Gider',
+      amount: 0,
+      date: new Date().toISOString()
+    };
+    setTask({
+      ...task,
+      subtasks: task.subtasks?.map(s => 
+        s.id === subId 
+          ? { ...s, expenses: [...(s.expenses || []), newExpense] }
+          : s
+      )
+    });
+  };
+
+  const updateSubtaskExpense = (subId: string, expId: string, field: keyof Expense, value: any) => {
+    setTask({
+      ...task,
+      subtasks: task.subtasks?.map(s => 
+        s.id === subId 
+          ? { ...s, expenses: s.expenses?.map(e => e.id === expId ? { ...e, [field]: value } : e) }
+          : s
+      )
+    });
+  };
+
+  const deleteSubtaskExpense = (subId: string, expId: string) => {
+    setTask({
+      ...task,
+      subtasks: task.subtasks?.map(s => 
+        s.id === subId 
+          ? { ...s, expenses: s.expenses?.filter(e => e.id !== expId) }
+          : s
+      )
     });
   };
 
@@ -102,8 +152,25 @@ export default function TaskDetails() {
     return <div>{t('task_not_found')}</div>;
   }
 
-  const totalExpenses = task.expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-  const netProfit = (Number(task.expectedRevenue) || 0) - totalExpenses;
+  const mainTaskExpenses = task.expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+  const subtaskExpenses = task.subtasks?.reduce((sum, sub) => sum + (sub.expenses?.reduce((eSum, e) => eSum + Number(e.amount), 0) || 0), 0) || 0;
+  const totalExpenses = mainTaskExpenses + subtaskExpenses;
+
+  const mainTaskRevenue = Number(task.expectedRevenue) || 0;
+  const subtaskRevenue = task.subtasks?.reduce((sum, sub) => sum + (sub.pricingType === 'separate' ? (Number(sub.revenue) || 0) : 0), 0) || 0;
+  const totalRevenue = mainTaskRevenue + subtaskRevenue;
+
+  const netProfit = totalRevenue - totalExpenses;
+
+  const getCurrencySymbol = (currency?: string) => {
+    switch (currency) {
+      case 'USD': return '$';
+      case 'EUR': return '€';
+      case 'GBP': return '£';
+      case 'PLN': return 'zł';
+      case 'TRY': default: return '₺';
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
@@ -192,27 +259,155 @@ export default function TaskDetails() {
                 <Plus className="w-4 h-4" /> {t('add')}
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {task.subtasks?.map(sub => (
-                <div key={sub.id} className="flex items-center gap-3">
-                  <input 
-                    type="checkbox" 
-                    checked={sub.isCompleted}
-                    onChange={e => updateSubtask(sub.id, 'isCompleted', e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-gray-900"
-                  />
-                  <input 
-                    type="text"
-                    value={sub.title}
-                    onChange={e => updateSubtask(sub.id, 'title', e.target.value)}
-                    className={`flex-1 min-w-0 border-none bg-transparent focus:ring-0 p-0 ${sub.isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}
-                  />
-                  <button 
-                    onClick={() => setTask({...task, subtasks: task.subtasks?.filter(s => s.id !== sub.id)})}
-                    className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div key={sub.id} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={sub.isCompleted}
+                      onChange={e => updateSubtask(sub.id, 'isCompleted', e.target.checked)}
+                      className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-gray-900"
+                    />
+                    <input 
+                      id={`subtask-title-${sub.id}`}
+                      type="text"
+                      value={sub.title}
+                      onChange={e => updateSubtask(sub.id, 'title', e.target.value)}
+                      className={`flex-1 min-w-0 border-none bg-transparent focus:ring-0 p-0 font-medium ${sub.isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}
+                    />
+                    <button 
+                      onClick={() => setTask({...task, subtasks: task.subtasks?.filter(s => s.id !== sub.id)})}
+                      className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('start_date')}</label>
+                      <input 
+                        type="date"
+                        value={sub.startDate || ''}
+                        onChange={e => updateSubtask(sub.id, 'startDate', e.target.value)}
+                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md px-2 py-1.5 focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('end_date')}</label>
+                      <input 
+                        type="date"
+                        value={sub.endDate || ''}
+                        onChange={e => updateSubtask(sub.id, 'endDate', e.target.value)}
+                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md px-2 py-1.5 focus:ring-1 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('description')}</label>
+                    <textarea 
+                      value={sub.description || ''}
+                      onChange={e => updateSubtask(sub.id, 'description', e.target.value)}
+                      className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-md px-2 py-1.5 min-h-[60px] focus:ring-1 focus:ring-blue-500 outline-none"
+                      placeholder={t('description_placeholder')}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('priority_1_10')}</label>
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="range" 
+                          min="1" max="10" 
+                          value={sub.priority || 5}
+                          onChange={e => updateSubtask(sub.id, 'priority', parseInt(e.target.value))}
+                          className="flex-1 accent-blue-600"
+                        />
+                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400 w-4">{sub.priority || 5}</span>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('pricing_type')}</label>
+                      <div className="flex gap-4 items-center h-8">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`pricing-${sub.id}`}
+                            value="included"
+                            checked={!sub.pricingType || sub.pricingType === 'included'}
+                            onChange={() => updateSubtask(sub.id, 'pricingType', 'included')}
+                            className="text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-xs text-gray-700 dark:text-gray-300">{t('included_in_price')}</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`pricing-${sub.id}`}
+                            value="separate"
+                            checked={sub.pricingType === 'separate'}
+                            onChange={() => updateSubtask(sub.id, 'pricingType', 'separate')}
+                            className="text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-xs text-gray-700 dark:text-gray-300">{t('priced_separately')}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {sub.pricingType === 'separate' && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('subtask_revenue')}</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="number" 
+                          value={(!sub.revenue || isNaN(sub.revenue)) ? '' : sub.revenue}
+                          onChange={e => updateSubtask(sub.id, 'revenue', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                          className="flex-1 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-emerald-600 dark:text-emerald-400 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-blue-500 outline-none font-medium"
+                        />
+                        <div className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                          {getCurrencySymbol(task.currency)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">{t('subtask_expenses')}</label>
+                      <button onClick={() => addSubtaskExpense(sub.id)} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium flex items-center gap-1">
+                        <Plus className="w-3 h-3" /> {t('add')}
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {sub.expenses?.map(exp => (
+                        <div key={exp.id} className="flex gap-2 items-center">
+                          <input 
+                            type="text" 
+                            value={exp.description}
+                            onChange={e => updateSubtaskExpense(sub.id, exp.id, 'description', e.target.value)}
+                            className="flex-1 min-w-0 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1.5"
+                            placeholder={t('description_placeholder')}
+                          />
+                          <input 
+                            type="number" 
+                            value={(!exp.amount || isNaN(exp.amount)) ? '' : exp.amount}
+                            onChange={e => updateSubtaskExpense(sub.id, exp.id, 'amount', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                            className="w-20 shrink-0 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 rounded px-2 py-1.5"
+                            placeholder={t('amount')}
+                          />
+                          <button onClick={() => deleteSubtaskExpense(sub.id, exp.id)} className="text-red-400 hover:text-red-600 dark:hover:text-red-300">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
               ))}
               {(!task.subtasks || task.subtasks.length === 0) && (
@@ -277,68 +472,6 @@ export default function TaskDetails() {
 
         {/* Sidebar Info */}
         <div className="space-y-6">
-          {/* Metrics */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-orange-500" />
-              {t('planning')}
-            </h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('due_date')}</label>
-              <div className="space-y-2">
-                <input 
-                  type="datetime-local" 
-                  value={task.dueDate ? task.dueDate.slice(0, 16) : ''}
-                  onChange={e => setTask({...task, dueDate: e.target.value ? new Date(e.target.value).toISOString() : ''})}
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-                <select
-                  value={task.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
-                  onChange={e => setTask({...task, timezone: e.target.value})}
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                >
-                  {Intl.supportedValuesOf('timeZone').map(tz => (
-                    <option key={tz} value={tz}>{tz}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('difficulty')} (1-10)</label>
-              <input 
-                type="range" 
-                min="1" max="10" 
-                value={task.difficulty}
-                onChange={e => setTask({...task, difficulty: parseInt(e.target.value)})}
-                className="w-full accent-blue-600"
-              />
-              <div className="text-center font-medium text-blue-600 dark:text-blue-400">{task.difficulty}</div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('estimated_hours')}</label>
-                <input 
-                  type="number" 
-                  value={(!task.estimatedHours || isNaN(task.estimatedHours)) ? '' : task.estimatedHours}
-                  onChange={e => setTask({...task, estimatedHours: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('actual_hours')}</label>
-                <input 
-                  type="number" 
-                  value={(!task.actualHours || isNaN(task.actualHours)) ? '' : task.actualHours}
-                  onChange={e => setTask({...task, actualHours: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Finance */}
           <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -404,10 +537,81 @@ export default function TaskDetails() {
             <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center font-bold">
               <span className="text-gray-700 dark:text-gray-300">{t('net_profit')}:</span>
               <span className={netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
-                ₺{netProfit.toLocaleString(settings?.language === 'en' ? 'en-US' : 'tr-TR')}
+                {getCurrencySymbol(task.currency)}{netProfit.toLocaleString(settings?.language === 'en' ? 'en-US' : 'tr-TR')}
               </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Planning & Priority Score (Moved to bottom) */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <Clock className="w-5 h-5 text-orange-500" />
+          {t('planning')}
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('due_date')}</label>
+            <div className="space-y-2">
+              <input 
+                type="datetime-local" 
+                value={task.dueDate ? task.dueDate.slice(0, 16) : ''}
+                onChange={e => setTask({...task, dueDate: e.target.value ? new Date(e.target.value).toISOString() : ''})}
+                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <select
+                value={task.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
+                onChange={e => setTask({...task, timezone: e.target.value})}
+                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+              >
+                {Intl.supportedValuesOf('timeZone').map(tz => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('priority_1_10')}</label>
+            <input 
+              type="range" 
+              min="1" max="10" 
+              value={task.difficulty}
+              onChange={e => setTask({...task, difficulty: parseInt(e.target.value)})}
+              className="w-full accent-blue-600 mt-2"
+            />
+            <div className="text-center font-medium text-blue-600 dark:text-blue-400 mt-1">{task.difficulty}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('estimated_hours')}</label>
+              <input 
+                type="number" 
+                value={(!task.estimatedHours || isNaN(task.estimatedHours)) ? '' : task.estimatedHours}
+                onChange={e => setTask({...task, estimatedHours: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
+                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('actual_hours')}</label>
+              <input 
+                type="number" 
+                value={(!task.actualHours || isNaN(task.actualHours)) ? '' : task.actualHours}
+                onChange={e => setTask({...task, actualHours: e.target.value === '' ? 0 : parseFloat(e.target.value)})}
+                className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <span className="text-lg font-bold text-gray-900 dark:text-white">{t('priority_score')}:</span>
+          <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
+            {task.difficulty + (task.subtasks?.reduce((sum, sub) => sum + (sub.priority || 5), 0) || 0)}
+          </span>
         </div>
       </div>
     </div>

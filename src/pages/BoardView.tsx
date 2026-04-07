@@ -85,11 +85,11 @@ export default function BoardView() {
                         )}
                         <div className="mt-3 flex justify-between items-center">
                           <span className="text-xs font-medium px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300">
-                            {t('difficulty')}: {task.difficulty}
+                            {t('priority')}: {task.difficulty + (task.subtasks?.reduce((sum, sub) => sum + (sub.priority || 5), 0) || 0)}
                           </span>
-                          {task.expectedRevenue && (
+                          {((task.expectedRevenue || 0) + (task.subtasks?.reduce((sum, sub) => sum + (sub.pricingType === 'separate' ? (sub.revenue || 0) : 0), 0) || 0)) > 0 && (
                             <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                              {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{task.expectedRevenue}
+                              {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{((task.expectedRevenue || 0) + (task.subtasks?.reduce((sum, sub) => sum + (sub.pricingType === 'separate' ? (sub.revenue || 0) : 0), 0) || 0))}
                             </span>
                           )}
                         </div>

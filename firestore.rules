@@ -142,6 +142,7 @@ service cloud.firestore {
              isValidOptionalString('currency', 0, 10) &&
              data.date is string &&
              isValidOptionalString('category', 0, 100) &&
+             (!('recurrence' in data) || data.recurrence in ['one_time', 'monthly', 'yearly']) &&
              data.userId == request.auth.uid &&
              data.createdAt is string;
     }

@@ -335,9 +335,9 @@ export default function ClientsView() {
                         {task.dueDate && (
                           <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                         )}
-                        {task.expectedRevenue && (
+                        {((task.expectedRevenue || 0) + (task.subtasks?.reduce((sum, sub) => sum + (sub.pricingType === 'separate' ? (sub.revenue || 0) : 0), 0) || 0)) > 0 && (
                           <span className="font-medium text-gray-700 dark:text-gray-300">
-                            • {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{task.expectedRevenue}
+                            • {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{((task.expectedRevenue || 0) + (task.subtasks?.reduce((sum, sub) => sum + (sub.pricingType === 'separate' ? (sub.revenue || 0) : 0), 0) || 0))}
                           </span>
                         )}
                       </div>

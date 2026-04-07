@@ -155,7 +155,7 @@ export default function CalendarView() {
                         {task.title}
                       </div>
                       <div className="text-xs mt-2 opacity-80 flex justify-between items-center">
-                        <span className="bg-white/50 px-1.5 py-0.5 rounded">Zorluk: {task.difficulty}</span>
+                        <span className="bg-white/50 px-1.5 py-0.5 rounded">{t('priority')}: {task.difficulty + (task.subtasks?.reduce((sum, sub) => sum + (sub.priority || 5), 0) || 0)}</span>
                       </div>
                     </Link>
                   ))}
@@ -213,11 +213,11 @@ export default function CalendarView() {
                        task.status === 'waiting' ? 'Beklemede' : 'Başlamadı'}
                     </span>
                     <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full font-medium">
-                      Zorluk: {task.difficulty}/10
+                      {t('priority')}: {task.difficulty + (task.subtasks?.reduce((sum, sub) => sum + (sub.priority || 5), 0) || 0)}
                     </span>
-                    {(task.expectedRevenue ?? 0) > 0 && (
+                    {((task.expectedRevenue || 0) + (task.subtasks?.reduce((sum, sub) => sum + (sub.pricingType === 'separate' ? (sub.revenue || 0) : 0), 0) || 0)) > 0 && (
                       <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-medium">
-                        {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{task.expectedRevenue}
+                        {task.currency === 'USD' ? '$' : task.currency === 'EUR' ? '€' : task.currency === 'GBP' ? '£' : task.currency === 'PLN' ? 'zł' : '₺'}{((task.expectedRevenue || 0) + (task.subtasks?.reduce((sum, sub) => sum + (sub.pricingType === 'separate' ? (sub.revenue || 0) : 0), 0) || 0))}
                       </span>
                     )}
                   </div>

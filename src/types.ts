@@ -35,12 +35,20 @@ export interface GeneralExpense {
   category?: string;
   userId: string;
   createdAt: string;
+  recurrence?: 'one_time' | 'monthly' | 'yearly';
 }
 
 export interface Subtask {
   id: string;
   title: string;
   isCompleted: boolean;
+  startDate?: string;
+  endDate?: string;
+  expenses?: Expense[];
+  pricingType?: 'included' | 'separate';
+  revenue?: number;
+  priority?: number;
+  description?: string;
 }
 
 export interface TimelineEvent {
